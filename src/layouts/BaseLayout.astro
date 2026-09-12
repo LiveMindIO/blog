@@ -1,0 +1,60 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+const {
+  title = "LiveMindIO Field Notes",
+  description = "Field notes on experimental media, audience interaction, and the systems behind them.",
+  image = "/social-card.svg",
+} = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const pageTitle = title === "LiveMindIO Field Notes" ? title : `${title} | LiveMindIO`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate" type="application/rss+xml" title="LiveMindIO Field Notes" href="/rss.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL(image, Astro.site)} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell masthead">
+        <a class="brand" href="/" aria-label="LiveMindIO Field Notes home">
+          <span class="brand-mark">L/M</span>
+          <span class="brand-name">LiveMindIO</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a href="/">Field notes</a>
+          <a href="/rss.xml">RSS</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <p><strong>LiveMindIO</strong><br />Experimental media shaped by its audience.</p>
+        <p class="post-meta">Built in public.<br />Observed in production.</p>
+      </div>
+    </footer>
+  </body>
+</html>

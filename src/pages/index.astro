@@ -1,0 +1,59 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+interface PostModule {
+  frontmatter: {
+    title: string;
+    description: string;
+    published: string;
+    number: string;
+    readingTime: string;
+    draft?: boolean;
+  };
+  url: string;
+}
+
+const modules = import.meta.glob<PostModule>("../content/posts/*.md", { eager: true });
+const posts = Object.values(modules)
+  .filter((post) => !post.frontmatter.draft)
+  .sort((a, b) => Date.parse(b.frontmatter.published) - Date.parse(a.frontmatter.published));
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(
+    new Date(value),
+  );
+---
+
+<BaseLayout>
+  <section class="shell hero">
+    <div>
+      <span class="eyebrow">Live systems / open notebooks</span>
+      <h1>Media is better when the audience can touch it.</h1>
+      <p class="hero-copy">
+        Field notes from LiveMindIO on interactive broadcasts, game-playing agents,
+        strange interfaces, and the infrastructure required to keep them alive.
+      </p>
+    </div>
+    <aside class="manifesto">
+      <strong>Working premise</strong>
+      A viewer should be able to change what happens next, not merely choose whether
+      to keep watching.
+    </aside>
+  </section>
+
+  <section class="shell post-list" aria-labelledby="latest-notes">
+    <h2 class="section-label" id="latest-notes">Latest field notes / {posts.length.toString().padStart(2, "0")}</h2>
+    {posts.map((post) => (
+      <article class="post-card">
+        <div class="issue">{post.frontmatter.number}</div>
+        <div>
+          <h2><a href={post.url}>{post.frontmatter.title}</a></h2>
+          <p>{post.frontmatter.description}</p>
+        </div>
+        <div class="post-meta">
+          {formatDate(post.frontmatter.published)}<br />
+          {post.frontmatter.readingTime}
+        </div>
+      </article>
+    ))}
+  </section>
+</BaseLayout>

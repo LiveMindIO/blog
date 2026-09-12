@@ -1,0 +1,30 @@
+---
+import type { MarkdownInstance } from "astro";
+
+interface Frontmatter {
+  title: string;
+  description: string;
+  published: string;
+  updated?: string;
+  number: string;
+  readingTime: string;
+  draft?: boolean;
+}
+
+type PostModule = MarkdownInstance<Frontmatter>;
+
+export function getStaticPaths() {
+  const modules = import.meta.glob<PostModule>("../../content/posts/*.md", { eager: true });
+  return Object.entries(modules)
+    .filter(([, post]) => !post.frontmatter.draft)
+    .map(([path, post]) => ({
+      params: { slug: path.split("/").pop()?.replace(/\.md$/, "") },
+      props: { post },
+    }));
+}
+
+const { post } = Astro.props as { post: PostModule };
+const { Content } = post;
+---
+
+<Content />

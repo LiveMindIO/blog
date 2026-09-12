@@ -1,0 +1,46 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+
+interface Props {
+  frontmatter: {
+    title: string;
+    description: string;
+    published: string;
+    updated?: string;
+    number: string;
+    readingTime: string;
+  };
+}
+
+const { title, description, published, updated, number, readingTime } = Astro.props.frontmatter;
+const date = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+}).format(new Date(published));
+---
+
+<BaseLayout title={title} description={description}>
+  <header class="shell article-header">
+    <div>
+      <span class="eyebrow">Field note {number}</span>
+      <h1>{title}</h1>
+      <p class="dek">{description}</p>
+    </div>
+    <div class="article-meta-box post-meta">
+      <div>Published<br />{date}</div>
+      <br />
+      <div>Reading time<br />{readingTime}</div>
+      {updated && <><br /><div>Revised<br />{updated}</div></>}
+    </div>
+  </header>
+  <article class="shell article">
+    <aside class="margin-note">
+      <span class="footnote-label">From the lab</span>
+      <p>Notes on the ideas, experiments, and infrastructure behind LiveMindIO.</p>
+    </aside>
+    <div class="article-body">
+      <slot />
+    </div>
+  </article>
+</BaseLayout>

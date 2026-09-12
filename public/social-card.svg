@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f4f0e6"/>
+  <path d="M0 0h1200v18H0z" fill="#171713"/>
+  <path d="M72 95h12v440H72z" fill="#e84e1b"/>
+  <text x="120" y="180" fill="#e84e1b" font-family="monospace" font-size="28" font-weight="700">L/M FIELD NOTES</text>
+  <text x="120" y="300" fill="#171713" font-family="Georgia,serif" font-size="82">Media you can touch.</text>
+  <text x="120" y="390" fill="#625e54" font-family="Georgia,serif" font-size="34">Experiments, agents, audiences, infrastructure.</text>
+  <text x="120" y="515" fill="#171713" font-family="monospace" font-size="25">BLOG.LIVEMIND.IO</text>
+</svg>
