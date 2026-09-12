@@ -271,7 +271,7 @@ button {
   z-index: 10;
   display: grid;
   min-height: var(--app-header-height);
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 1rem;
   padding: 0.5rem 1.5rem;
@@ -292,6 +292,10 @@ button {
   color: var(--text);
 }
 
+.app-sidebar-toggle {
+  justify-self: start;
+}
+
 .app-sidebar-toggle:hover {
   border-color: rgba(95, 74, 254, 0.5);
   background: rgba(95, 74, 254, 0.1);
@@ -305,8 +309,7 @@ button {
   gap: 0.35rem;
 }
 
-.top-nav a,
-.header-feed {
+.top-nav a {
   position: relative;
   padding: 0.62rem 0.8rem;
   border-radius: 0.45rem;
@@ -317,8 +320,7 @@ button {
   white-space: nowrap;
 }
 
-.top-nav a:hover,
-.header-feed:hover {
+.top-nav a:hover {
   background: rgba(255, 255, 255, 0.045);
   color: var(--text);
 }
@@ -338,10 +340,9 @@ button {
   content: "";
 }
 
-.header-feed {
-  border: 1px solid var(--panel-border);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
+.header-spacer {
+  width: 2.5rem;
+  justify-self: end;
 }
 
 .app-content-wrapper {
@@ -579,14 +580,12 @@ h3 {
 }
 
 .article {
-  display: grid;
-  grid-template-columns: minmax(8rem, 0.3fr) minmax(0, 46rem) minmax(2rem, 0.1fr);
-  gap: clamp(1.5rem, 4vw, 3.5rem);
+  display: block;
   padding: 2rem 0 4rem;
 }
 
 .article-body {
-  grid-column: 2;
+  width: 100%;
   min-width: 0;
   padding: clamp(1.5rem, 4vw, 3rem);
   border: 1px solid var(--panel-border);
@@ -715,9 +714,9 @@ h3 {
 @media (max-width: 800px) {
   .app-header {
     grid-template-areas:
-      "toggle feed"
+      "toggle spacer"
       "nav nav";
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 1fr 1fr;
     gap: 0.5rem 0.75rem;
     padding: 0.65rem 1rem;
   }
@@ -728,13 +727,13 @@ h3 {
 
   .top-nav {
     grid-area: nav;
-    justify-content: flex-start;
+    justify-content: center;
     overflow-x: auto;
     padding-top: 0.1rem;
   }
 
-  .header-feed {
-    grid-area: feed;
+  .header-spacer {
+    grid-area: spacer;
     justify-self: end;
   }
 

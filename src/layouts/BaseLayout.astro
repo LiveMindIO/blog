@@ -15,6 +15,13 @@ const {
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const pageTitle = title === "LiveMindIO Field Notes" ? title : `${title} | LiveMindIO`;
 const currentPath = Astro.url.pathname;
+const postModules = import.meta.glob<{ frontmatter: { title: string; published: string }; url: string }>(
+  "../content/posts/*.md",
+  { eager: true },
+);
+const sidebarPosts = Object.values(postModules).sort(
+  (a, b) => Date.parse(a.frontmatter.published) - Date.parse(b.frontmatter.published),
+);
 ---
 
 <!doctype html>
@@ -41,26 +48,19 @@ const currentPath = Astro.url.pathname;
       <aside id="app-sidebar" class="app-sidebar" aria-label="Field notes navigation">
         <a class="app-sidebar-header" href="/">
           <span class="app-brand-mark" aria-hidden="true">LM</span>
-          <span class="app-brand-copy"><strong>Field Notes</strong><span>LiveMindIO</span></span>
+          <span class="app-brand-copy"><strong>Blog</strong><span>LiveMindIO</span></span>
         </a>
         <button id="app-sidebar-close" class="app-sidebar-close" type="button" aria-label="Close navigation">
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path></svg>
         </button>
         <nav class="app-sidebar-menu" aria-label="Blog pages">
-          <section class="side-nav-group" aria-labelledby="side-nav-notes">
-            <h2 id="side-nav-notes" class="side-nav-heading">Field Notes</h2>
+          <section class="side-nav-group" aria-labelledby="side-nav-posts">
+            <h2 id="side-nav-posts" class="side-nav-heading">Blog Posts</h2>
             <ul class="side-nav-list">
-              <li><a class="side-nav-link" href="/" aria-current={currentPath === "/" ? "page" : undefined}>Latest</a></li>
-              <li><a class="side-nav-link" href="/posts/hello-world/" aria-current={currentPath === "/posts/hello-world/" ? "page" : undefined}>Hello, world</a></li>
-              <li><a class="side-nav-link" href="/posts/dolphin-debugging-stack/" aria-current={currentPath === "/posts/dolphin-debugging-stack/" ? "page" : undefined}>Dolphin debugging</a></li>
-            </ul>
-          </section>
-          <section class="side-nav-group" aria-labelledby="side-nav-links">
-            <h2 id="side-nav-links" class="side-nav-heading">LiveMindIO</h2>
-            <ul class="side-nav-list">
-              <li><a class="side-nav-link" href="https://dashboard.livemind.io/">Dashboard</a></li>
-              <li><a class="side-nav-link" href="https://dashboard.livemind.io/leaderboard.html">Super Slop Bots</a></li>
-              <li><a class="side-nav-link" href="https://github.com/LiveMindIO">GitHub</a></li>
+              <li><a class="side-nav-link" href="/" aria-current={currentPath === "/" ? "page" : undefined}>Overview</a></li>
+              {sidebarPosts.map((post) => (
+                <li><a class="side-nav-link" href={post.url} aria-current={currentPath === post.url ? "page" : undefined}>{post.frontmatter.title}</a></li>
+              ))}
             </ul>
           </section>
         </nav>
@@ -71,12 +71,12 @@ const currentPath = Astro.url.pathname;
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path></svg>
           </button>
           <nav class="top-nav" aria-label="Primary navigation">
-            <a href="https://dashboard.livemind.io/">Home</a>
-            <a href="https://dashboard.livemind.io/leaderboard.html">Super Slop Bots</a>
+            <a href="/" aria-current={currentPath === "/" ? "page" : undefined}>Home</a>
+            <a href="https://dashboard.livemind.io/overview.html">Super Slop Bots</a>
+            <a href="https://github.com/LiveMindIO">GitHub</a>
             <a href="https://dashboard.livemind.io/contact.html">Contact Us</a>
-            <a href="/" aria-current="page">Blog</a>
           </nav>
-          <a class="header-feed" href="/rss.xml">RSS</a>
+          <span class="header-spacer" aria-hidden="true"></span>
         </header>
         <div class="app-content-wrapper">
           <main id="main-content" tabindex="-1">
