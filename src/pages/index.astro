@@ -10,12 +10,15 @@ interface PostModule {
     readingTime: string;
     draft?: boolean;
   };
-  url: string;
 }
 
 const modules = import.meta.glob<PostModule>("../content/posts/*.md", { eager: true });
-const posts = Object.values(modules)
-  .filter((post) => !post.frontmatter.draft)
+const posts = Object.entries(modules)
+  .filter(([, post]) => !post.frontmatter.draft)
+  .map(([path, post]) => ({
+    ...post,
+    url: `/posts/${path.split("/").pop()?.replace(/\.md$/, "")}/`,
+  }))
   .sort((a, b) => Date.parse(b.frontmatter.published) - Date.parse(a.frontmatter.published));
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(
