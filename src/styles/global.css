@@ -667,6 +667,15 @@ h3 {
   border-top: 1px solid var(--panel-border);
 }
 
+.article-body .twitch-clip {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 2rem 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 0.65rem;
+}
+
 .margin-note {
   grid-column: 1;
   grid-row: 1;
