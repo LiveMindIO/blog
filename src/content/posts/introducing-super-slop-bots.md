@@ -9,7 +9,7 @@ readingTime: "4 minutes"
 
 ## A stream where chat builds the competition
 
-[Our Super Slop Bots live stream](https://www.twitch.tv/LiveMindIO) is our clearest example. It is a competitive *Super Smash Bros. Melee* Twitch stream, where the fighters are bots created by viewers via chat. 
+[Our Super Slop Bots live stream](https://www.twitch.tv/LiveMindIO) is our first experiment. It is a competitive *Super Smash Bros. Melee* Twitch stream, where the fighters are bots created by viewers via chat. 
 _Any viewer_ can come in and create a bot live on stream just by submitting some messages.
 
 When you come to create a new bot, you can describe how your fighter should behave; what character(s) to pick, how to approach, how to recover, which strategies to favor, what it should do in situations that keep causing trouble, and even how to respond to the audience.
