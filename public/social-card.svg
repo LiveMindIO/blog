@@ -1,9 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#f4f0e6"/>
-  <path d="M0 0h1200v18H0z" fill="#171713"/>
-  <path d="M72 95h12v440H72z" fill="#e84e1b"/>
-  <text x="120" y="180" fill="#e84e1b" font-family="monospace" font-size="28" font-weight="700">L/M FIELD NOTES</text>
-  <text x="120" y="300" fill="#171713" font-family="Georgia,serif" font-size="82">Media you can touch.</text>
-  <text x="120" y="390" fill="#625e54" font-family="Georgia,serif" font-size="34">Experiments, agents, audiences, infrastructure.</text>
-  <text x="120" y="515" fill="#171713" font-family="monospace" font-size="25">BLOG.LIVEMIND.IO</text>
+  <rect width="1200" height="630" fill="#161618"/>
+  <circle cx="980" cy="80" r="390" fill="#5f4afe" opacity=".18"/>
+  <rect x="70" y="82" width="64" height="64" rx="15" fill="#5f4afe"/>
+  <text x="83" y="125" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="800">LM</text>
+  <text x="158" y="124" fill="#9a88ff" font-family="Inter,Arial,sans-serif" font-size="25" font-weight="700" letter-spacing="3">FIELD NOTES</text>
+  <text x="72" y="295" fill="#f3f2f7" font-family="Inter,Arial,sans-serif" font-size="82" font-weight="650">Media you can touch.</text>
+  <text x="72" y="382" fill="#b9bac3" font-family="Inter,Arial,sans-serif" font-size="34">Experiments, agents, audiences, infrastructure.</text>
+  <text x="72" y="535" fill="#939397" font-family="Inter,Arial,sans-serif" font-size="24">BLOG.LIVEMIND.IO</text>
 </svg>

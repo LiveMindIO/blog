@@ -24,7 +24,7 @@ const formatDate = (value: string) =>
 ---
 
 <BaseLayout>
-  <section class="shell hero">
+  <section class="content-shell hero">
     <div>
       <span class="eyebrow">Live systems / open notebooks</span>
       <h1>Media is better when the audience can touch it.</h1>
@@ -40,7 +40,7 @@ const formatDate = (value: string) =>
     </aside>
   </section>
 
-  <section class="shell post-list" aria-labelledby="latest-notes">
+  <section class="content-shell post-list" aria-labelledby="latest-notes">
     <h2 class="section-label" id="latest-notes">Latest field notes / {posts.length.toString().padStart(2, "0")}</h2>
     {posts.map((post) => (
       <article class="post-card">

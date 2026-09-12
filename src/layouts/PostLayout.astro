@@ -21,7 +21,7 @@ const date = new Intl.DateTimeFormat("en-US", {
 ---
 
 <BaseLayout title={title} description={description}>
-  <header class="shell article-header">
+  <header class="content-shell article-header">
     <div>
       <span class="eyebrow">Field note {number}</span>
       <h1>{title}</h1>
@@ -34,7 +34,7 @@ const date = new Intl.DateTimeFormat("en-US", {
       {updated && <><br /><div>Revised<br />{updated}</div></>}
     </div>
   </header>
-  <article class="shell article">
+  <article class="content-shell article">
     <aside class="margin-note">
       <span class="footnote-label">From the lab</span>
       <p>Notes on the ideas, experiments, and infrastructure behind LiveMindIO.</p>

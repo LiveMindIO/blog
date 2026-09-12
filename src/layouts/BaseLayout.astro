@@ -14,6 +14,7 @@ const {
 } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const pageTitle = title === "LiveMindIO Field Notes" ? title : `${title} | LiveMindIO`;
+const currentPath = Astro.url.pathname;
 ---
 
 <!doctype html>
@@ -35,26 +36,77 @@ const pageTitle = title === "LiveMindIO Field Notes" ? title : `${title} | LiveM
     <title>{pageTitle}</title>
   </head>
   <body>
-    <header class="site-header">
-      <div class="shell masthead">
-        <a class="brand" href="/" aria-label="LiveMindIO Field Notes home">
-          <span class="brand-mark">L/M</span>
-          <span class="brand-name">LiveMindIO</span>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="app-main">
+      <aside id="app-sidebar" class="app-sidebar" aria-label="Field notes navigation">
+        <a class="app-sidebar-header" href="/">
+          <span class="app-brand-mark" aria-hidden="true">LM</span>
+          <span class="app-brand-copy"><strong>Field Notes</strong><span>LiveMindIO</span></span>
         </a>
-        <nav class="site-nav" aria-label="Primary navigation">
-          <a href="/">Field notes</a>
-          <a href="/rss.xml">RSS</a>
+        <button id="app-sidebar-close" class="app-sidebar-close" type="button" aria-label="Close navigation">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path></svg>
+        </button>
+        <nav class="app-sidebar-menu" aria-label="Blog pages">
+          <section class="side-nav-group" aria-labelledby="side-nav-notes">
+            <h2 id="side-nav-notes" class="side-nav-heading">Field Notes</h2>
+            <ul class="side-nav-list">
+              <li><a class="side-nav-link" href="/" aria-current={currentPath === "/" ? "page" : undefined}>Latest</a></li>
+              <li><a class="side-nav-link" href="/posts/hello-world/" aria-current={currentPath === "/posts/hello-world/" ? "page" : undefined}>Hello, world</a></li>
+              <li><a class="side-nav-link" href="/posts/dolphin-debugging-stack/" aria-current={currentPath === "/posts/dolphin-debugging-stack/" ? "page" : undefined}>Dolphin debugging</a></li>
+            </ul>
+          </section>
+          <section class="side-nav-group" aria-labelledby="side-nav-links">
+            <h2 id="side-nav-links" class="side-nav-heading">LiveMindIO</h2>
+            <ul class="side-nav-list">
+              <li><a class="side-nav-link" href="https://dashboard.livemind.io/">Dashboard</a></li>
+              <li><a class="side-nav-link" href="https://dashboard.livemind.io/leaderboard.html">Super Slop Bots</a></li>
+              <li><a class="side-nav-link" href="https://github.com/LiveMindIO">GitHub</a></li>
+            </ul>
+          </section>
         </nav>
+      </aside>
+      <div class="app-wrapper">
+        <header class="app-header">
+          <button id="app-sidebar-toggle" class="app-sidebar-toggle" type="button" aria-controls="app-sidebar" aria-expanded="false" aria-label="Open navigation">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path></svg>
+          </button>
+          <nav class="top-nav" aria-label="Primary navigation">
+            <a href="https://dashboard.livemind.io/">Home</a>
+            <a href="https://dashboard.livemind.io/leaderboard.html">Super Slop Bots</a>
+            <a href="https://dashboard.livemind.io/contact.html">Contact Us</a>
+            <a href="/" aria-current="page">Blog</a>
+          </nav>
+          <a class="header-feed" href="/rss.xml">RSS</a>
+        </header>
+        <div class="app-content-wrapper">
+          <main id="main-content" tabindex="-1">
+            <slot />
+          </main>
+        </div>
+        <footer class="site-footer">
+          <div class="content-shell footer-grid">
+            <p><strong>LiveMindIO</strong><br />Experimental media shaped by its audience.</p>
+            <p class="post-meta">Built in public.<br />Observed in production.</p>
+          </div>
+        </footer>
       </div>
-    </header>
-    <main>
-      <slot />
-    </main>
-    <footer class="site-footer">
-      <div class="shell footer-grid">
-        <p><strong>LiveMindIO</strong><br />Experimental media shaped by its audience.</p>
-        <p class="post-meta">Built in public.<br />Observed in production.</p>
-      </div>
-    </footer>
+      <button id="app-backdrop" class="app-backdrop" type="button" aria-label="Close navigation"></button>
+    </div>
+    <script>
+      const body = document.body;
+      const toggle = document.querySelector("#app-sidebar-toggle");
+      const close = document.querySelector("#app-sidebar-close");
+      const backdrop = document.querySelector("#app-backdrop");
+      const setOpen = (open: boolean) => {
+        body.classList.toggle("sidebar-open", open);
+        toggle?.setAttribute("aria-expanded", String(open));
+      };
+      toggle?.addEventListener("click", () => setOpen(!body.classList.contains("sidebar-open")));
+      close?.addEventListener("click", () => setOpen(false));
+      backdrop?.addEventListener("click", () => setOpen(false));
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") setOpen(false);
+      });
+    </script>
   </body>
 </html>
