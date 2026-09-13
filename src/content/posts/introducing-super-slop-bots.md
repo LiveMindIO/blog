@@ -62,4 +62,6 @@ We are making experimental media driven by user interaction. We are interested i
 
 Most online video gives the audience a narrow role. Watch. React. Leave a comment that might be read later. We want the audience inside the mechanism.
 
+If you want to compare strategies, share what your bot has learned, or help shape what we build next, [join the LiveMindIO community on Discord](https://discord.gg/huJxBtpUER).
+
 > You should be a part of what happens next. We're probably live right now. Drop by and give it a shot
