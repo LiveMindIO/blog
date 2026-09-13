@@ -4,7 +4,7 @@ title: "Debugging Melee after the matching decompilation"
 description: "How Melee's matching decompilation, our Dolphin fork, DAP clients, and MCP open new paths into reverse engineering."
 published: "2026-09-12T11:00:00-04:00"
 number: "002"
-readingTime: "10 minutes"
+readingTime: "12 minutes"
 ---
 
 After years of work, the [`doldecomp/melee`](https://github.com/doldecomp/melee) community has completed a matching decompilation of *Super Smash Bros. Melee*. The reconstructed source now compiles to the original machine code. That is an enormous milestone, and it gives people a foundation for reading, building, and studying the game.
@@ -60,42 +60,119 @@ You can omit `--no-optimize` to build the current default branch with symbols, b
 
 ## Start with VS Code
 
-If you are unfamiliar with debuggers, start with VS Code and [`dolphin-dap-vscode`](https://github.com/LiveMindIO/dolphin-dap-vscode). Its Run and Debug view keeps source code, variables, the call stack, and breakpoints visible alongside controls for pausing and stepping.
+If you are unfamiliar with debuggers, start with VS Code and use our vscode dap plugin.. Its Run and Debug view keeps source code, variables, the call stack, and breakpoints visible alongside controls for pausing and stepping.
 
-Build the fork's NoGUI target by following the [`dolphin-dap` server guide](https://github.com/LiveMindIO/dolphin-dap/blob/master/Tools/dap/README.md), then build and install the VS Code extension by following its README. Start Dolphin with the debug ELF, your legally obtained Melee disc image, and both Melee source roots:
+Build the fork's NoGUI target by following the [`dolphin-dap` server guide](https://github.com/LiveMindIO/dolphin-dap/blob/master/Tools/dap/README.md), then follow the [VS Code extension installation instructions](https://github.com/LiveMindIO/dolphin-dap-vscode).
 
-```sh
-/path/to/dolphin-emu-nogui \
-  -C Dolphin.General.DAPPort=5678 \
-  -C Dolphin.Debug.SourcePaths=/path/to/melee/src\;/path/to/melee/extern/dolphin/src \
-  -C Dolphin.Core.DefaultISO=/path/to/melee.iso \
-  -C Dolphin.Core.BootExecutableWithDefaultDisc=true \
-  --exec /path/to/melee/build/GALE01/main.elf
+The following Linux configuration reproduces our end-to-end setup. It gives VS Code one configuration that rebuilds Melee before starting Dolphin and another that starts Dolphin with the existing ELF. Both tasks remove any stale DAP socket, launch Dolphin, wait until its DAP server is ready, and clean up the Dolphin process when the task ends.
+
+Add `.vscode/tasks.json` to the Melee checkout. Replace `/path/to/dolphin-dap` and `/path/to/melee.iso` with the paths to your `dolphin-dap` build and legally obtained Melee disc image:
+
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build and Launch Dolphin DAP",
+      "type": "process",
+      "command": "/bin/bash",
+      "args": [
+        "-c",
+        "set -e\npython configure.py --no-optimize --sym on --debug --map\nninja\nsocket=$1\nrm -f \"$socket\"\n\"$2\" -C \"Dolphin.General.DAPSocket=$socket\" -C \"Dolphin.Debug.SourcePaths=$5\" -C \"Dolphin.Core.DefaultISO=$3\" -C Dolphin.Core.BootExecutableWithDefaultDisc=true --exec \"$4\" --platform x11 &\ndolphin_pid=$!\ncleanup() {\n  kill \"$dolphin_pid\" 2>/dev/null || true\n  wait \"$dolphin_pid\" 2>/dev/null || true\n  rm -f \"$socket\"\n}\ntrap cleanup EXIT INT TERM\nuntil [ -S \"$socket\" ]; do\n  kill -0 \"$dolphin_pid\"\n  sleep 0.1\ndone\nprintf 'Dolphin DAP ready\\n'\nwait \"$dolphin_pid\"",
+        "launch-dolphin",
+        "${workspaceFolder}/.dolphin-dap.sock",
+        "/path/to/dolphin-dap/build/Binaries/dolphin-emu-nogui",
+        "/path/to/melee.iso",
+        "${workspaceFolder}/build/GALE01/main.elf",
+        "${workspaceFolder}/src;${workspaceFolder}/extern/dolphin/src"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "dolphin",
+        "pattern": {
+          "regexp": "^(?!)$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^$",
+          "endsPattern": "^Dolphin DAP ready$"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Launch Dolphin DAP",
+      "type": "process",
+      "command": "/bin/bash",
+      "args": [
+        "-c",
+        "set -e\nsocket=$1\nrm -f \"$socket\"\n\"$2\" -C \"Dolphin.General.DAPSocket=$socket\" -C \"Dolphin.Debug.SourcePaths=$5\" -C \"Dolphin.Core.DefaultISO=$3\" -C Dolphin.Core.BootExecutableWithDefaultDisc=true --exec \"$4\" --platform x11 &\ndolphin_pid=$!\ncleanup() {\n  kill \"$dolphin_pid\" 2>/dev/null || true\n  wait \"$dolphin_pid\" 2>/dev/null || true\n  rm -f \"$socket\"\n}\ntrap cleanup EXIT INT TERM\nuntil [ -S \"$socket\" ]; do\n  kill -0 \"$dolphin_pid\"\n  sleep 0.1\ndone\nprintf 'Dolphin DAP ready\\n'\nwait \"$dolphin_pid\"",
+        "launch-dolphin",
+        "${workspaceFolder}/.dolphin-dap.sock",
+        "/path/to/dolphin-dap/build/Binaries/dolphin-emu-nogui",
+        "/path/to/melee.iso",
+        "${workspaceFolder}/build/GALE01/main.elf",
+        "${workspaceFolder}/src;${workspaceFolder}/extern/dolphin/src"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "dolphin",
+        "pattern": {
+          "regexp": "^(?!)$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^$",
+          "endsPattern": "^Dolphin DAP ready$"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    }
+  ]
+}
 ```
 
-Add `.vscode/launch.json` to the Melee checkout:
+Then add `.vscode/launch.json`:
 
 ```json
 {
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach to Melee in Dolphin",
+      "name": "Build and Debug",
       "type": "dolphin",
       "request": "attach",
-      "host": "127.0.0.1",
-      "port": 5678,
-      "sourcePaths": [
-        "${workspaceFolder}/src",
-        "${workspaceFolder}/extern/dolphin/src"
-      ],
+      "preLaunchTask": "Build and Launch Dolphin DAP",
+      "socket": "${workspaceFolder}/.dolphin-dap.sock",
+      "stopOnEntry": true
+    },
+    {
+      "name": "Debug",
+      "type": "dolphin",
+      "request": "attach",
+      "preLaunchTask": "Launch Dolphin DAP",
+      "socket": "${workspaceFolder}/.dolphin-dap.sock",
       "stopOnEntry": true
     }
   ]
 }
 ```
 
-Open Run and Debug, choose **Attach to Melee in Dolphin**, and start the configuration. The extension is attach-only: Dolphin must already be running. Keeping launch and attach separate also makes failures clearer. A build or Dolphin launch error remains distinct from a debugger connection error.
+Open Run and Debug and choose **Build and Debug**. VS Code runs the background task, configures the non-optimized ELF, builds it with Ninja, starts Dolphin, waits for the DAP socket, and then attaches the extension. After the first build, choose **Debug** when you want to relaunch the existing ELF without rebuilding it.
+
+The extension itself remains attach-only. The `preLaunchTask` is what turns that attachment into one action: it prepares Dolphin before the extension connects. The example uses Bash, a Unix-domain socket, and Dolphin's X11 platform, so other operating systems or display backends require corresponding changes.
 
 ## A working Neovim setup
 
@@ -145,6 +222,4 @@ You do not need to be a professional programmer to help. Choose one small part o
 
 Set a breakpoint, perform one controlled action, and record what happened. Change one condition and repeat it. Useful evidence can be as simple as confirming when a function runs, connecting a value to an on-screen action, or writing reproduction steps that somebody else can verify. A careful observation is more valuable than a clever guess.
 
-Before renaming code or changing a structure, search the [`doldecomp/melee` issues](https://github.com/doldecomp/melee/issues) and source to see what is already known. Use the issue tracker to coordinate uncertain findings, and follow the project's existing pull requests when preparing a code contribution. Include the source location, build revision, breakpoint or address, exact steps, observations, and anything that remains uncertain so another contributor can reproduce your work.
-
-The stack does not make a 2001 game simple, and it does not replace the decompilation effort. It connects that effort to Melee while it is running. That gives more people a practical way to turn an unknown address into a source line, inspect the evidence, and help the community understand the game together.
+Before renaming code or changing a structure, search the source to see what is already known. Bring questions and uncertain findings to the `#smash-bros-melee` channel in the [GameCube/Wii Decompilation Discord](https://discord.gg/hKx3FJJgrV), where contributors coordinate this kind of investigation. When the evidence is ready for a code contribution, follow the project's [contributing guidelines](https://github.com/doldecomp/melee/blob/master/.github/CONTRIBUTING.md). Include the source location, build revision, breakpoint or address, exact steps, observations, and anything that remains uncertain so another contributor can reproduce your work.
