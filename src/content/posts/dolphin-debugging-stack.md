@@ -47,24 +47,22 @@ It also provides game-oriented tools such as live memory watches, frozen values,
 
 First follow the decompilation project's [getting-started guide](https://github.com/doldecomp/melee/blob/master/docs/getting_started.md) to prepare the repository and the required files from your own copy of Melee.
 
-The `--no-optimize` option used in our tested setup is proposed in [`doldecomp/melee` pull request #3466](https://github.com/doldecomp/melee/pull/3466) and is not available on the project's default branch yet. Until that work is merged, you must check out or apply the pull request before running this command:
+Configure a debug build. Since [`doldecomp/melee` pull request #3466](https://github.com/doldecomp/melee/pull/3466) was merged, `--debug` enables symbols and disables optimization. Disabling optimization is important because compiler optimization makes source-level stepping unreliable and prevents local variables from updating correctly in the DAP client.
 
 ```sh
-python3 configure.py --debug --sym on --map --no-optimize
+python3 configure.py --debug
 ninja
 ```
 
-This produces `build/GALE01/main.elf`. The ISO still supplies the game's disc files, but Dolphin executes the ELF so that the running code matches its debugging information. The `--map` option also produces a symbol map for offline address inspection; DAP itself relies on the ELF's symbols and DWARF information.
-
-You can omit `--no-optimize` to build the current default branch with symbols, but compiler optimization makes source-level stepping unreliable and prevents local variables from updating correctly in the DAP client. A non-optimized build is therefore important when you need to step through source or inspect locals, rather than only work with symbols, registers, global state, disassembly, and memory.
+This produces `build/GALE01/main.elf`. The ISO still supplies the game's disc files, but Dolphin executes the ELF so that the running code matches its debugging information. DAP relies on the ELF's symbols and DWARF information.
 
 ## Start with VS Code
 
-If you are unfamiliar with debuggers, start with VS Code and use our vscode dap plugin.. Its Run and Debug view keeps source code, variables, the call stack, and breakpoints visible alongside controls for pausing and stepping.
+If you are unfamiliar with debuggers, start with VS Code and our [`dolphin-dap-vscode`](https://github.com/LiveMindIO/dolphin-dap-vscode) extension. Its Run and Debug view keeps source code, variables, the call stack, and breakpoints visible alongside controls for pausing and stepping.
 
 Build the fork's NoGUI target by following the [`dolphin-dap` server guide](https://github.com/LiveMindIO/dolphin-dap/blob/master/Tools/dap/README.md), then follow the [VS Code extension installation instructions](https://github.com/LiveMindIO/dolphin-dap-vscode).
 
-The following Linux configuration reproduces our end-to-end setup. It gives VS Code one configuration that rebuilds Melee before starting Dolphin and another that starts Dolphin with the existing ELF. Both tasks remove any stale DAP socket, launch Dolphin, wait until its DAP server is ready, and clean up the Dolphin process when the task ends.
+The following Linux configuration reproduces our end-to-end setup. It separates building Melee, launching Dolphin, and stopping Dolphin into distinct tasks. **Build and Debug** runs the build and launch tasks in sequence, while **Debug** launches the existing ELF. The launch task records Dolphin's process ID and waits for its DAP socket; the stop task uses that process ID to clean up Dolphin when debugging ends.
 
 Add `.vscode/tasks.json` to the Melee checkout. Replace `/path/to/dolphin-dap` and `/path/to/melee.iso` with the paths to your `dolphin-dap` build and legally obtained Melee disc image:
 
@@ -73,37 +71,15 @@ Add `.vscode/tasks.json` to the Melee checkout. Replace `/path/to/dolphin-dap` a
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build and Launch Dolphin DAP",
+      "label": "Build Dolphin Debug ELF",
       "type": "process",
       "command": "/bin/bash",
       "args": [
         "-c",
-        "set -e\npython configure.py --no-optimize --sym on --debug --map\nninja\nsocket=$1\nrm -f \"$socket\"\n\"$2\" -C \"Dolphin.General.DAPSocket=$socket\" -C \"Dolphin.Debug.SourcePaths=$5\" -C \"Dolphin.Core.DefaultISO=$3\" -C Dolphin.Core.BootExecutableWithDefaultDisc=true --exec \"$4\" --platform x11 &\ndolphin_pid=$!\ncleanup() {\n  kill \"$dolphin_pid\" 2>/dev/null || true\n  wait \"$dolphin_pid\" 2>/dev/null || true\n  rm -f \"$socket\"\n}\ntrap cleanup EXIT INT TERM\nuntil [ -S \"$socket\" ]; do\n  kill -0 \"$dolphin_pid\"\n  sleep 0.1\ndone\nprintf 'Dolphin DAP ready\\n'\nwait \"$dolphin_pid\"",
-        "launch-dolphin",
-        "${workspaceFolder}/.dolphin-dap.sock",
-        "/path/to/dolphin-dap/build/Binaries/dolphin-emu-nogui",
-        "/path/to/melee.iso",
-        "${workspaceFolder}/build/GALE01/main.elf",
-        "${workspaceFolder}/src;${workspaceFolder}/extern/dolphin/src"
+        "set -e\npython configure.py --debug\nninja"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
-      },
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "dolphin",
-        "pattern": {
-          "regexp": "^(?!)$"
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "^$",
-          "endsPattern": "^Dolphin DAP ready$"
-        }
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
       }
     },
     {
@@ -112,9 +88,10 @@ Add `.vscode/tasks.json` to the Melee checkout. Replace `/path/to/dolphin-dap` a
       "command": "/bin/bash",
       "args": [
         "-c",
-        "set -e\nsocket=$1\nrm -f \"$socket\"\n\"$2\" -C \"Dolphin.General.DAPSocket=$socket\" -C \"Dolphin.Debug.SourcePaths=$5\" -C \"Dolphin.Core.DefaultISO=$3\" -C Dolphin.Core.BootExecutableWithDefaultDisc=true --exec \"$4\" --platform x11 &\ndolphin_pid=$!\ncleanup() {\n  kill \"$dolphin_pid\" 2>/dev/null || true\n  wait \"$dolphin_pid\" 2>/dev/null || true\n  rm -f \"$socket\"\n}\ntrap cleanup EXIT INT TERM\nuntil [ -S \"$socket\" ]; do\n  kill -0 \"$dolphin_pid\"\n  sleep 0.1\ndone\nprintf 'Dolphin DAP ready\\n'\nwait \"$dolphin_pid\"",
+        "set -e\nsocket=$1\npidfile=$2\nif [ -f \"$pidfile\" ]; then\n  IFS= read -r old_pid <\"$pidfile\"\n  kill \"$old_pid\" 2>/dev/null || true\nfi\nrm -f \"$socket\" \"$pidfile\"\nnohup \"$3\" -C \"Dolphin.General.DAPSocket=$socket\" -C \"Dolphin.Debug.SourcePaths=$6\" -C \"Dolphin.Core.DefaultISO=$4\" -C Dolphin.Core.BootExecutableWithDefaultDisc=true --exec \"$5\" --platform x11 >build/dolphin-dap.log 2>&1 &\ndolphin_pid=$!\nprintf '%s\\n' \"$dolphin_pid\" >\"$pidfile\"\ncleanup() {\n  kill \"$dolphin_pid\" 2>/dev/null || true\n  rm -f \"$socket\" \"$pidfile\"\n}\ntrap cleanup ERR INT TERM\nuntil [ -S \"$socket\" ]; do\n  kill -0 \"$dolphin_pid\"\n  sleep 0.1\ndone\nprintf 'Dolphin DAP ready\\n'",
         "launch-dolphin",
         "${workspaceFolder}/.dolphin-dap.sock",
+        "${workspaceFolder}/.dolphin-dap.pid",
         "/path/to/dolphin-dap/build/Binaries/dolphin-emu-nogui",
         "/path/to/melee.iso",
         "${workspaceFolder}/build/GALE01/main.elf",
@@ -123,22 +100,32 @@ Add `.vscode/tasks.json` to the Melee checkout. Replace `/path/to/dolphin-dap` a
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "dolphin",
-        "pattern": {
-          "regexp": "^(?!)$"
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "^$",
-          "endsPattern": "^Dolphin DAP ready$"
-        }
-      },
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
       }
+    },
+    {
+      "label": "Build and Launch Dolphin DAP",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Build Dolphin Debug ELF",
+        "Launch Dolphin DAP"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop Dolphin DAP",
+      "type": "process",
+      "command": "/bin/bash",
+      "args": [
+        "-c",
+        "pidfile=$1\nsocket=$2\nif [ -f \"$pidfile\" ]; then\n  IFS= read -r dolphin_pid <\"$pidfile\"\n  kill \"$dolphin_pid\" 2>/dev/null || true\nfi\nrm -f \"$pidfile\" \"$socket\"",
+        "stop-dolphin",
+        "${workspaceFolder}/.dolphin-dap.pid",
+        "${workspaceFolder}/.dolphin-dap.sock"
+      ],
+      "problemMatcher": []
     }
   ]
 }
@@ -155,6 +142,7 @@ Then add `.vscode/launch.json`:
       "type": "dolphin",
       "request": "attach",
       "preLaunchTask": "Build and Launch Dolphin DAP",
+      "postDebugTask": "Stop Dolphin DAP",
       "socket": "${workspaceFolder}/.dolphin-dap.sock",
       "stopOnEntry": true
     },
@@ -163,6 +151,7 @@ Then add `.vscode/launch.json`:
       "type": "dolphin",
       "request": "attach",
       "preLaunchTask": "Launch Dolphin DAP",
+      "postDebugTask": "Stop Dolphin DAP",
       "socket": "${workspaceFolder}/.dolphin-dap.sock",
       "stopOnEntry": true
     }
@@ -170,7 +159,7 @@ Then add `.vscode/launch.json`:
 }
 ```
 
-Open Run and Debug and choose **Build and Debug**. VS Code runs the background task, configures the non-optimized ELF, builds it with Ninja, starts Dolphin, waits for the DAP socket, and then attaches the extension. After the first build, choose **Debug** when you want to relaunch the existing ELF without rebuilding it.
+Open Run and Debug and choose **Build and Debug**. VS Code configures the non-optimized ELF, builds it with Ninja, starts Dolphin, waits for the DAP socket, and then attaches the extension. After the first build, choose **Debug** when you want to relaunch the existing ELF without rebuilding it. Ending either debug session runs **Stop Dolphin DAP**.
 
 The extension itself remains attach-only. The `preLaunchTask` is what turns that attachment into one action: it prepares Dolphin before the extension connects. The example uses Bash, a Unix-domain socket, and Dolphin's X11 platform, so other operating systems or display backends require corresponding changes.
 
