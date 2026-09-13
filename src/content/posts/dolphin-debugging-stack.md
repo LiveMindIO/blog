@@ -45,7 +45,9 @@ It also provides game-oriented tools such as live memory watches, frozen values,
 
 ## Build a debuggable Melee ELF
 
-First follow the decompilation project's [getting-started guide](https://github.com/doldecomp/melee/blob/master/docs/getting_started.md) to prepare the repository and the required files from your own copy of Melee. Then configure a build with symbols enabled and optimization disabled:
+First follow the decompilation project's [getting-started guide](https://github.com/doldecomp/melee/blob/master/docs/getting_started.md) to prepare the repository and the required files from your own copy of Melee.
+
+The `--no-optimize` option used in our tested setup is proposed in [`doldecomp/melee` pull request #3466](https://github.com/doldecomp/melee/pull/3466) and is not available on the project's default branch yet. Until that work is merged, you must check out or apply the pull request before running this command:
 
 ```sh
 python3 configure.py --debug --sym on --map --no-optimize
@@ -53,6 +55,8 @@ ninja
 ```
 
 This produces `build/GALE01/main.elf`. The ISO still supplies the game's disc files, but Dolphin executes the ELF so that the running code matches its debugging information. The `--map` option also produces a symbol map for offline address inspection; DAP itself relies on the ELF's symbols and DWARF information.
+
+You can omit `--no-optimize` to build the current default branch with symbols, but compiler optimization makes source-level stepping unreliable and prevents local variables from updating correctly in the DAP client. A non-optimized build is therefore important when you need to step through source or inspect locals, rather than only work with symbols, registers, global state, disassembly, and memory.
 
 The debug information must match the exact ELF being executed. If the source, addresses, and ELF do not agree, a debugger may show the wrong line or no line at all.
 

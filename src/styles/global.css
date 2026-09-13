@@ -303,6 +303,7 @@ button {
 
 .top-nav {
   display: flex;
+  grid-column: 2;
   min-width: 0;
   align-items: center;
   justify-content: center;
@@ -341,6 +342,7 @@ button {
 }
 
 .header-spacer {
+  grid-column: 3;
   width: 2.5rem;
   justify-self: end;
 }
