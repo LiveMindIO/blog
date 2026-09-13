@@ -11,34 +11,44 @@ After years of work, the [`doldecomp/melee`](https://github.com/doldecomp/melee)
 
 Finishing the decompilation does not mean there is nothing left to discover. There are still functions with placeholder names, structures that are not fully understood, and systems whose behavior needs to be tested while the game is running. A matching decompilation gives that reverse-engineering work a remarkable foundation. The next challenge is making it easier for more people to explore.
 
-The decompilation effort helped make Super Slop Bots possible. We built on the source and knowledge its contributors recovered, and now we want to provide tools that can help push the effort further. This debugger stack lets someone open a source file, stop Melee on a line, and see the game's global state, variables local to the current function, PowerPC registers, and the call stack showing how execution reached that line. We want to spread the word because it is a great way to start helping with the reverse-engineering work that comes next.
+The decompilation effort helped make Super Slop Bots possible. We built on the source and knowledge its contributors recovered, and now we want to provide tools that can help push the effort further.
 
-We have the complete stack working with `doldecomp/melee`. Before explaining how, it is important to be clear about what each repository is:
+## So, What next?
 
-- [`dolphin-dap`](https://github.com/LiveMindIO/dolphin-dap) is our fork of the Dolphin emulator. It adds a Debug Adapter Protocol server to Dolphin itself. It is not an editor plugin and it is not an official Dolphin release.
-- [`dolphin-dap-vscode`](https://github.com/LiveMindIO/dolphin-dap-vscode) contains the VS Code extension.
-- [`dolphin-dap-nvim`](https://github.com/LiveMindIO/dolphin-dap-nvim) contains the Neovim integration.
-- [`dolphin-dap-mcp`](https://github.com/LiveMindIO/dolphin-dap-mcp) lets an AI agent use the debugger.
-- [`doldecomp/melee`](https://github.com/doldecomp/melee) is the decompilation project where we have successfully used and tested the complete stack.
+We need people to look at the code and figure out what all of it means. One way to do that is to just look at the code,
+look at what else is already understood, and then infer the function of a currently poorly understood piece of code,
+then give it names.  This works great and is what I've seen called "Sudoku style" reverse engineering by Melee decomp contributor Mark McCaskey.
 
+However, sometimes this isn't enough. Sometimes things are surrounded by completely unknown functionality and the only
+way to figure it out is to run the game and look at the memory.  Mainline Dolphin's built-in debugging tools are great
+for this, especially when combined with a symbol map that you can get out of mwcc, but it's not quite at the level of
+modern debugging tools.
+
+So we here at LiveMindIO have worked to add full ELF file support to our fork of dolphin, and build a DAP debugger
+server in to it. This lets someone open a source file, stop Melee on a line, and see the game's global state, variables local to the current function, PowerPC registers, and the call stack showing how execution reached that line. All data displayed is structured according to the hard-won structure definitions that the Melee decompilation team divined from the binary so far. 
+
+## Debugging with dolphins and ELFs
+
+To get moving with debugging a game from 2001 like it's 2026, you need 3 things.  A dap server, a dap client, and an elf.  
 
 DAP, or the Debug Adapter Protocol, is a common language between an editor and a debugger. It is what allows the same Dolphin debugger to work with different editors and tools.
 
-## Decompilation makes this useful
+The DAP Server has insight in to a running program, and lets DAP Clients ask it things, or tell it to do things to it.
+For our usecase, this is [our custom Dolphin fork](https://github.com/LiveMindIO/dolphin-dap).
 
-This stack would be practically useless for understanding Melee without the work of the decompilation community.
+The DAP Client talks to the dap server, telling the DAP Server to pause/resume execution, monitor memory regions, set
+breakpoints, etc;  It's what an engineer is interacting with when they're actively debugging something.  We currently
+have three dolphin-dap clients. One for [VS Code](https://github.com/LiveMindIO/dolphin-dap-vscode), one for [neovim](https://github.com/LiveMindIO/dolphin-dap-nvim), and one for [LLMs in the form of an MCP server](https://github.com/LiveMindIO/dolphin-dap-mcp).
 
-The original game does not come with its source code or a helpful list of what every function and piece of data means. The [`doldecomp/melee`](https://github.com/doldecomp/melee) community has spent years turning Melee's machine code back into readable C source, identifying structures, and giving names to previously unknown parts of the game.
+The ELF file gets produced by the compiler when we build [melee](https://github.com/doldecomp/melee) from source. It contains the program itself as well as a
+bunch of metadata. Structure definitions, information about what binary code is associated with what lines in the
+source, the names of global and local variables, etc;  
 
-That source is used to build an ELF file. An ELF is a program file, but this debug build also carries extra information that connects the running machine code back to source files, line numbers, function names, local variables, and structures. Our Dolphin fork reads that information. When the emulated processor reaches an address, Dolphin can show the corresponding line of decompiled source and describe the data at that moment.
+Prior to the completed decompilation, we could not get our hands on an elf file good enough that would allow us to do this. Congratulations to the Melee decompilation project on how far it has come, and thank you to every [`doldecomp/melee` contributor](https://github.com/doldecomp/melee/graphs/contributors). This next step depends wholly on their work.
 
-In simpler terms: the decompilation tells us what the code probably represents, the ELF gives Dolphin a map between that source and the running game, and the debugger lets us stop the game and look around.
+## Dolphin DAP 
 
-Congratulations to the Melee decompilation project on how far it has come, and thank you to every [`doldecomp/melee` contributor](https://github.com/doldecomp/melee/graphs/contributors). This debugger stands on top of their painstaking work.
-
-## Dolphin is the debug adapter
-
-There is no GDB or LLDB process translating between another debugger and Dolphin. The DAP server lives beside Dolphin's PowerPC debugger, where it can directly inspect emulated execution, memory, symbols, and source information.
+The DAP server lives beside Dolphin's PowerPC debugger, where it can directly inspect emulated execution, memory, symbols, and source information.
 
 It supports the debugging tools people expect:
 
