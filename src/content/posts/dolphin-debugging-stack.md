@@ -70,7 +70,18 @@ Nothing produced by an AI agent should be taken at face value. An AI can misread
 
 ## A working Melee setup
 
-We tested this stack against a real debug build from [`doldecomp/melee`](https://github.com/doldecomp/melee). Build that project with symbols and optimization disabled:
+We tested this stack against a real debug build from [`doldecomp/melee`](https://github.com/doldecomp/melee). Here, Melee is paused at a source breakpoint in Neovim while the debugger shows the call stack, PowerPC registers, local variables, and global state beside the running game:
+
+<img
+  class="article-image"
+  src="/melee-debugger-working-setup.png"
+  alt="Melee paused at a source breakpoint in Neovim, with the call stack, PowerPC registers, local variables, and global state beside the Event Match screen"
+  width="3072"
+  height="1833"
+  loading="lazy"
+/>
+
+Build the project with symbols and optimization disabled:
 
 ```sh
 python3 configure.py --debug --sym on --map --no-optimize
