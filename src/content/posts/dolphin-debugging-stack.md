@@ -58,8 +58,6 @@ This produces `build/GALE01/main.elf`. The ISO still supplies the game's disc fi
 
 You can omit `--no-optimize` to build the current default branch with symbols, but compiler optimization makes source-level stepping unreliable and prevents local variables from updating correctly in the DAP client. A non-optimized build is therefore important when you need to step through source or inspect locals, rather than only work with symbols, registers, global state, disassembly, and memory.
 
-The debug information must match the exact ELF being executed. If the source, addresses, and ELF do not agree, a debugger may show the wrong line or no line at all.
-
 ## Start with VS Code
 
 If you are unfamiliar with debuggers, start with VS Code and [`dolphin-dap-vscode`](https://github.com/LiveMindIO/dolphin-dap-vscode). Its Run and Debug view keeps source code, variables, the call stack, and breakpoints visible alongside controls for pausing and stepping.
