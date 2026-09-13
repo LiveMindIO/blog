@@ -19,7 +19,7 @@ Much of reverse engineering happens by reading. You compare an unknown function 
 
 Sometimes the surrounding code is also unknown, or a value only makes sense in motion. Then you need to run the game and observe it. Mainline Dolphin includes useful debugging tools and can load a symbol map, but it does not provide the source-level workflow people expect from a modern editor.
 
-LiveMindIO's [`dolphin-dap`](https://github.com/LiveMindIO/dolphin-dap) fork of Dolphin adds support for debugging an ELF with its DWARF information and exposes Dolphin's PowerPC debugger through the Debug Adapter Protocol. You can stop Melee on a source line and inspect local variables, global state, structures, PowerPC registers, and the call stack that led there. Those views use the types and names recovered by the Melee decompilation community.
+Our [`dolphin-dap`](https://github.com/LiveMindIO/dolphin-dap) fork of Dolphin adds support for debugging an ELF with its DWARF information and exposes Dolphin's PowerPC debugger through the Debug Adapter Protocol. You can stop Melee on a source line and inspect local variables, global state, structures, PowerPC registers, and the call stack that led there. Those views use the types and names recovered by the Melee decompilation community.
 
 ## How the stack fits together
 
