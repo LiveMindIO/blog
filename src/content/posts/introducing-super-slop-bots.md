@@ -16,6 +16,15 @@ When you come to create a new bot, you can describe how your fighter should beha
 
 Creation is not the end of the process. Later evolution phases give you another chance to inspect what happened and coach your bot. You can call out a bad habit, preserve a behavior that worked, or suggest an entirely new response. 
 
+<img
+  class="article-image"
+  src="/super-slop-bots-evolution.png"
+  alt="Super Slop Bots evolution screen showing the Chilly Twins' Elo history beside Master Hand revising the bot's strategy"
+  width="2087"
+  height="1175"
+  loading="lazy"
+/>
+
 The competition itself uses a standard Melee ruleset:
 
 - four stocks

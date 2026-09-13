@@ -1,100 +1,112 @@
 ---
 layout: ../../layouts/PostLayout.astro
 title: "A debugger stack for a game that shipped in 2001"
-description: "How Dolphin DAP, MCP, VS Code, and Neovim turn an emulated PowerPC game into a source-level debugging environment."
+description: "How decompiled Melee source, our Dolphin fork, DAP clients, and MCP make source-level debugging possible."
 published: "2026-09-12T11:00:00-04:00"
 number: "002"
-readingTime: "9 minutes"
+readingTime: "10 minutes"
 ---
 
-Super Slop Bots runs on top of *Super Smash Bros. Melee*, a GameCube game released in 2001. Building new systems around an old game eventually means answering a very modern question: can we put a breakpoint here?
+After years of work, the [`doldecomp/melee`](https://github.com/doldecomp/melee) community has finished decompiling *Super Smash Bros. Melee*. That is an enormous milestone: the game's original machine code has been reconstructed as source code that people can read, build, and study.
 
-For us, the answer needed to be better than an emulator pause button and a list of PowerPC instructions. We wanted source files, line breakpoints, call stacks, local variables, structured values, memory tools, and editor integrations. We also wanted automation to use the same debugger without inventing a second control plane.
+Finishing the decompilation does not mean there is nothing left to discover. There are still functions with placeholder names, structures that are not fully understood, and systems whose behavior needs to be tested while the game is running. A matching decompilation gives that reverse-engineering work a remarkable foundation. The next challenge is making it easier for more people to explore.
 
-The result is a small stack built around the Debug Adapter Protocol:
+The decompilation effort helped make Super Slop Bots possible. We built on the source and knowledge its contributors recovered, and now we want to provide tools that can help push the effort further. This debugger stack lets someone open a source file, stop Melee on a line, and see the game's global state, variables local to the current function, PowerPC registers, and the call stack showing how execution reached that line. We want to spread the word because it is a great way to start helping with the reverse-engineering work that comes next.
 
-```text
-VS Code ─── stdio proxy ──┐
-Neovim / nvim-dap ───────┼── DAP over TCP or Unix socket ── Dolphin
-MCP client ── MCP server ┘
-```
+We have the complete stack working with `doldecomp/melee`. Before explaining how, it is important to be clear about what each repository is:
 
-There are four names in the stack, but only two repositories. [`dolphin-dap`](https://github.com/LiveMindIO/dolphin-dap) contains the emulator-side DAP server and the bundled editor integrations. [`dolphin-dap-mcp`](https://github.com/LiveMindIO/dolphin-dap-mcp) is a separate TypeScript service that presents the debugger to MCP clients.
+- [`dolphin-dap`](https://github.com/LiveMindIO/dolphin-dap) is our fork of the Dolphin emulator. It adds a Debug Adapter Protocol server to Dolphin itself. It is not an editor plugin and it is not an official Dolphin release.
+- [`dolphin-dap-vscode`](https://github.com/LiveMindIO/dolphin-dap-vscode) contains the VS Code extension.
+- [`dolphin-dap-nvim`](https://github.com/LiveMindIO/dolphin-dap-nvim) contains the Neovim integration.
+- [`dolphin-dap-mcp`](https://github.com/LiveMindIO/dolphin-dap-mcp) lets an AI agent use the debugger.
+- [`doldecomp/melee`](https://github.com/doldecomp/melee) is the decompilation project where we have successfully used and tested the complete stack.
 
-## Layer one: Dolphin is the debug adapter
 
-The important architectural decision is that Dolphin itself speaks DAP. There is no GDB or LLDB process translating from another debugger protocol. The adapter lives beside Dolphin's PowerPC debugger and has direct access to emulated execution, memory, symbols, and source metadata.
+DAP, or the Debug Adapter Protocol, is a common language between an editor and a debugger. It is what allows the same Dolphin debugger to work with different editors and tools.
 
-The server uses normal `Content-Length` framed DAP over loopback TCP or a Unix-domain socket. A minimal launch looks like this:
+## Decompilation makes this useful
 
-```sh
-dolphin-emu-nogui \
-  -C Dolphin.General.DAPPort=5678 \
-  -C Dolphin.Core.DefaultISO=/path/to/game.iso \
-  -C Dolphin.Core.BootExecutableWithDefaultDisc=true \
-  --exec /path/to/main.elf
-```
+This stack would be practically useless for understanding Melee without the work of the decompilation community.
 
-Executing an ELF matters. A decompilation project can produce a symbol-rich build whose addresses correspond to the running game. Dolphin can then turn an instruction address into a source path and line, and it can interpret the CodeWarrior-era DWARF 1.1 data emitted for GameCube software.
+The original game does not come with its source code or a helpful list of what every function and piece of data means. The [`doldecomp/melee`](https://github.com/doldecomp/melee) community has spent years turning Melee's machine code back into readable C source, identifying structures, and giving names to previously unknown parts of the game.
 
-The standard debugger surface includes:
+That source is used to build an ELF file. An ELF is a program file, but this debug build also carries extra information that connects the running machine code back to source files, line numbers, function names, local variables, and structures. Our Dolphin fork reads that information. When the emulated processor reaches an address, Dolphin can show the corresponding line of decompiled source and describe the data at that moment.
 
-- pause, continue, restart, and source or instruction stepping
-- source, instruction, and ranged data breakpoints
-- PowerPC call stacks and registers
+In simpler terms: the decompilation tells us what the code probably represents, the ELF gives Dolphin a map between that source and the running game, and the debugger lets us stop the game and look around.
+
+Congratulations to the Melee decompilation project on how far it has come, and thank you to every [`doldecomp/melee` contributor](https://github.com/doldecomp/melee/graphs/contributors). This debugger stands on top of their painstaking work.
+
+## Dolphin is the debug adapter
+
+There is no GDB or LLDB process translating between another debugger and Dolphin. The DAP server lives beside Dolphin's PowerPC debugger, where it can directly inspect emulated execution, memory, symbols, and source information.
+
+It supports the debugging tools people expect:
+
+- pause, continue, restart, and step through code
+- breakpoints on source lines, instructions, and memory
+- call stacks and PowerPC registers
 - local and global variables, structures, pointers, and arrays
 - expression evaluation, memory access, source retrieval, and disassembly
 
-We added game-oriented operations as well: realtime memory watches, frozen values, typed and raw memory scans, pointer-chain resolution, free-memory searches, PowerPC code injection, and transparent detours. These are sharp tools. A read is observation; a freeze, write, or detour changes the live machine.
+It also provides game-oriented tools such as live memory watches, frozen values, memory scans, pointer-chain resolution, free-memory searches, PowerPC code injection, and detours. These are sharp tools. Reading memory observes the game; freezing, writing, injecting, or detouring changes it.
 
-## Layer two: Dolphin DAP MCP
+## Choose an editor
 
-Editor debugging is useful when a person knows where to look. Automation needs a durable connection, explicit operations, and a way to wait for asynchronous state changes. [`dolphin-dap-mcp`](https://github.com/LiveMindIO/dolphin-dap-mcp) provides that layer.
+If you are unfamiliar with debugging tools, **start with VS Code** and [`dolphin-dap-vscode`](https://github.com/LiveMindIO/dolphin-dap-vscode). Its Run and Debug screen gives you visible buttons for starting, pausing, stepping, and stopping. It also shows source code, variables, the call stack, and breakpoints in one place. The repository includes working Melee `launch.json` and `tasks.json` examples that build the ELF, start Dolphin, wait for its socket, and attach the editor.
 
-It is an MCP server written in TypeScript. Upstream, it speaks MCP over stdio. Downstream, it keeps one persistent DAP connection to Dolphin over TCP or a Unix socket. It correlates replies by request sequence, queues events, and exposes sixteen tools covering lifecycle, execution, breakpoints, stacks, variables, memory, disassembly, sources, watches, scans, injection, detours, and pointer chains. A raw request tool keeps new Dolphin extensions usable before the MCP layer grows a dedicated wrapper.
+The VS Code extension is attach-only: a background task starts Dolphin, and then the extension connects to it. Keeping those steps separate makes errors easier to understand. If the build fails, you see a build error instead of a vague debugger timeout.
 
-The server can attach to an existing emulator or launch one itself:
+If you already use Neovim, [`dolphin-dap-nvim`](https://github.com/LiveMindIO/dolphin-dap-nvim) connects `nvim-dap` to Dolphin and can launch the project from the `.dolphin-dap.lua` file above. It follows normal `nvim-dap` commands and keeps optional interface plugins optional.
 
-```json
-{
-  "executable": "/path/to/dolphin-emu-nogui",
-  "elf": "/project/build/main.elf",
-  "disc": "/path/to/game.iso",
-  "port": 5678,
-  "sourcePaths": [
-    "/project/src",
-    "/project/extern/dolphin/src"
-  ],
-  "stopOnEntry": true
+The two editor clients do the same basic job, but they are independent projects in independent repositories. Neither one is bundled inside the `dolphin-dap` fork.
+
+## AI can assist, not decide
+
+[`dolphin-dap-mcp`](https://github.com/LiveMindIO/dolphin-dap-mcp) lets an MCP client use the debugger. That means an AI agent can pause Melee, set a breakpoint, inspect a stack, read variables or memory, disassemble code, and gather evidence about what the game is doing.
+
+This can help an agent test a guess instead of only guessing from source code. It can also repeat a long sequence of debugger operations and record what happened. That does **not** make its conclusions correct.
+
+Nothing produced by an AI agent should be taken at face value. An AI can misread a value, confuse correlation with cause, invent a confident explanation, or modify the running game in a way that invalidates its own result. AI-generated findings need at least as much scrutiny as a human's findings, and often more. Check the source, reproduce the steps, inspect the raw debugger output, and ask whether the evidence really supports the claim.
+
+## A working Melee setup
+
+We tested this stack against a real debug build from [`doldecomp/melee`](https://github.com/doldecomp/melee). Build that project with symbols and optimization disabled:
+
+```sh
+python3 configure.py --debug --sym on --map --no-optimize
+ninja
+```
+
+This produces `build/GALE01/main.elf`. The ISO still supplies the game's disc files, but Dolphin executes the ELF so the code being run matches its debugging information.
+
+Here is the working `.dolphin-dap.lua` shape used by `dolphin-dap-nvim` for Melee. Replace the three machine-specific paths with your own:
+
+```lua
+return {
+  dolphin = "/path/to/dolphin-dap/build/Binaries/dolphin-emu-nogui",
+  program = "/path/to/melee/build/GALE01/main.elf",
+  disc = "/path/to/melee.iso",
+  cwd = "/path/to/melee",
+  source_paths = {
+    "/path/to/melee/src",
+    "/path/to/melee/extern/dolphin/src",
+  },
+  enable_cheats = false,
+  port = 5678,
 }
 ```
 
-We validated the whole path against a live Melee debug build: source resolution, source retrieval, a thirteen-frame stack, registers, expression evaluation, memory regions, a bounded scan, a pointer chain, PowerPC disassembly, a realtime watch, a real source breakpoint, instruction stepping, resume, and a clean disconnect.
+The order of `source_paths` matters because some old compiler records contain only a filename. The debug information must also match the exact ELF being executed. If the source, addresses, and ELF do not agree, a debugger may show the wrong line or no line at all.
 
-The goal is not to let an automated client poke memory indiscriminately. The goal is to let it gather the same evidence a careful debugger user would gather, through operations whose effects are visible and bounded.
+We validated source lookup, a thirteen-frame call stack, registers, expressions, memory regions, scanning, pointer chains, disassembly, live watches, source breakpoints, instruction stepping, resume, and disconnect against this setup.
 
-## Layer three: the VS Code client
 
-The bundled [Dolphin DAP Client for VS Code](https://github.com/LiveMindIO/dolphin-dap/tree/master/Tools/dap/vscode) registers a `dolphin` debugger type and connects the editor to the emulator. A small Node proxy carries framed DAP between VS Code's stdio adapter interface and Dolphin's TCP or socket transport.
+## Help us identify the unknowns
 
-Its less visible job is source-path repair. Old compiler metadata does not always contain the absolute path of today's checkout. The client can resolve relative and basename-only paths against configured source roots, while deliberately refusing ambiguous matches rather than opening the wrong file.
+There is still a lot of Melee code with placeholder names, incomplete structures, or behavior that is not well understood. We need help reverse engineering it.
 
-The extension is attach-only. In practice, a VS Code background task builds the project, starts Dolphin, waits for the DAP socket, and then allows the debug configuration to attach. Keeping launch and attachment separate makes failures easier to see: a broken build never becomes a mysterious debugger timeout.
+You do not need to be a professional programmer to begin. Start with VS Code, follow the setup examples, choose one small part of the game that interests you, and learn what happens when you pause there. A useful contribution can be as simple as confirming when a function runs, noticing that a value changes with an on-screen action, or documenting steps that somebody else can reproduce.
 
-## Layer four: the Neovim client
+Pick apart the things that do not have good names yet. Record what you tried, what you observed, and what remains uncertain. A careful observation is more valuable than a clever guess.
 
-The bundled [Neovim integration](https://github.com/LiveMindIO/dolphin-dap/tree/master/Tools/dap/nvim) connects `nvim-dap` directly to Dolphin. The minimal form is a normal server or pipe attachment. The included `dolphin-dap` Lua module adds project discovery and generated launch configurations.
-
-A project can describe its Dolphin executable, ELF, disc, working directory, source roots, and port in `.dolphin-dap.lua`. From that one file, the integration can generate headless or graphical launches as well as attach configurations. It also supports sidecar ELF workflows, provided the metadata addresses match the running executable exactly.
-
-This client stays close to the conventions of `nvim-dap`. There is no second debugger model to learn, and optional UI packages remain optional.
-
-## One protocol, shared state
-
-Using DAP at every boundary gives us interchangeable views of the same running system. VS Code can provide a familiar graphical debugger. Neovim can keep debugging next to the code and command line. MCP can collect evidence, run repeatable inspections, and expose emulator-specific tools to automation.
-
-They are not isolated sessions. Dolphin allows at most two DAP clients, and execution state and breakpoint domains are shared. In normal use, one active client is the safest choice. Optimized code can still make source stepping and local variables imperfect. Debug metadata is useful only when it describes the executable actually running.
-
-Those constraints are worth stating because the stack is not pretending that a 2001 toolchain behaves like a current native build. It is translating the real machine faithfully enough that we can investigate it with modern habits.
-
-For an interactive media system, that changes the speed of understanding. A failure no longer ends at “the emulator did something strange.” It can end at a source line, with a stack, values, memory, and a reproducible path back to the cause.
+The stack does not make a 2001 game simple, and it does not replace the decompilation effort. It connects that effort to the game while it is running. That gives more people a practical way to turn an unknown address into a source line, inspect the evidence, and help us understand Melee together.
