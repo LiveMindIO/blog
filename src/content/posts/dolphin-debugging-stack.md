@@ -62,6 +62,14 @@ If you are unfamiliar with debuggers, start with VS Code and our [`dolphin-dap-v
 
 Build the fork's NoGUI target by following the [`dolphin-dap` server guide](https://github.com/LiveMindIO/dolphin-dap/blob/master/Tools/dap/README.md), then follow the [VS Code extension installation instructions](https://github.com/LiveMindIO/dolphin-dap-vscode).
 
+Every Dolphin debugging launch needs the following CLI setting, including NoGUI launches:
+
+```sh
+-C Dolphin.Interface.DebugModeEnabled=True
+```
+
+It enables core breakpoint checks and debugger-aware stepping for that launch. Opening a DAP port or socket alone does not enable core debugging, and this setting does not open GUI panes in NoGUI. Keep it when adapting the launch examples below.
+
 The following Linux configuration reproduces our end-to-end setup. It separates building Melee, launching Dolphin, and stopping Dolphin into distinct tasks. **Build and Debug** runs the build and launch tasks in sequence, while **Debug** launches the existing ELF. The launch task records Dolphin's process ID and waits for its DAP socket; the stop task uses that process ID to clean up Dolphin when debugging ends.
 
 Add `.vscode/tasks.json` to the Melee checkout. Replace `/path/to/dolphin-dap` and `/path/to/melee.iso` with the paths to your `dolphin-dap` build and legally obtained Melee disc image:
@@ -88,7 +96,7 @@ Add `.vscode/tasks.json` to the Melee checkout. Replace `/path/to/dolphin-dap` a
       "command": "/bin/bash",
       "args": [
         "-c",
-        "set -e\nsocket=$1\npidfile=$2\nif [ -f \"$pidfile\" ]; then\n  IFS= read -r old_pid <\"$pidfile\"\n  kill \"$old_pid\" 2>/dev/null || true\nfi\nrm -f \"$socket\" \"$pidfile\"\nnohup \"$3\" -C \"Dolphin.General.DAPSocket=$socket\" -C \"Dolphin.Debug.SourcePaths=$6\" -C \"Dolphin.Core.DefaultISO=$4\" -C Dolphin.Core.BootExecutableWithDefaultDisc=true --exec \"$5\" --platform x11 >build/dolphin-dap.log 2>&1 &\ndolphin_pid=$!\nprintf '%s\\n' \"$dolphin_pid\" >\"$pidfile\"\ncleanup() {\n  kill \"$dolphin_pid\" 2>/dev/null || true\n  rm -f \"$socket\" \"$pidfile\"\n}\ntrap cleanup ERR INT TERM\nuntil [ -S \"$socket\" ]; do\n  kill -0 \"$dolphin_pid\"\n  sleep 0.1\ndone\nprintf 'Dolphin DAP ready\\n'",
+        "set -e\nsocket=$1\npidfile=$2\nif [ -f \"$pidfile\" ]; then\n  IFS= read -r old_pid <\"$pidfile\"\n  kill \"$old_pid\" 2>/dev/null || true\nfi\nrm -f \"$socket\" \"$pidfile\"\nnohup \"$3\" -C Dolphin.Interface.DebugModeEnabled=True -C \"Dolphin.General.DAPSocket=$socket\" -C \"Dolphin.Debug.SourcePaths=$6\" -C \"Dolphin.Core.DefaultISO=$4\" -C Dolphin.Core.BootExecutableWithDefaultDisc=true --exec \"$5\" --platform x11 >build/dolphin-dap.log 2>&1 &\ndolphin_pid=$!\nprintf '%s\\n' \"$dolphin_pid\" >\"$pidfile\"\ncleanup() {\n  kill \"$dolphin_pid\" 2>/dev/null || true\n  rm -f \"$socket\" \"$pidfile\"\n}\ntrap cleanup ERR INT TERM\nuntil [ -S \"$socket\" ]; do\n  kill -0 \"$dolphin_pid\"\n  sleep 0.1\ndone\nprintf 'Dolphin DAP ready\\n'",
         "launch-dolphin",
         "${workspaceFolder}/.dolphin-dap.sock",
         "${workspaceFolder}/.dolphin-dap.pid",
@@ -197,9 +205,18 @@ return {
 
 The order of `source_paths` matters because some compiler records contain only a filename. We validated source lookup, a thirteen-frame call stack, registers, expressions, memory regions, scanning, pointer chains, disassembly, live watches, source breakpoints, instruction stepping, resume, and disconnect against this setup.
 
+For a manual launch, add `-C Dolphin.Interface.DebugModeEnabled=True` to the command printed by `:DolphinDapCmd`, then attach Neovim. The plugin's generated launch command does not currently include that override. For plugin-managed launches, enable core debugging in the `Dolphin.ini` used by that process:
+
+```ini
+[Interface]
+DebugModeEnabled = True
+```
+
 ## AI can assist, not decide
 
 [`dolphin-dap-mcp`](https://github.com/LiveMindIO/dolphin-dap-mcp) is a separate MCP server that lets a compatible AI client use the debugger. Its README includes installation instructions and an example MCP configuration. Once connected, an agent can start or attach to Dolphin, set a breakpoint, inspect a stack, read variables or memory, disassemble code, and gather evidence about what the game is doing.
+
+When starting Dolphin manually for MCP, include `-C Dolphin.Interface.DebugModeEnabled=True` before calling `dolphin_connect`. The MCP server's `dolphin_start` tool does not currently pass this argument, so MCP-managed launches need the persistent `[Interface]` setting shown above.
 
 This lets an agent test a guess instead of only reasoning from source code. It can also repeat a long sequence of debugger operations and record what happened. That does **not** make its conclusions correct.
 
