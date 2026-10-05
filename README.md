@@ -5,8 +5,14 @@ game-playing agents, and the systems behind them.
 
 ## Development
 
+Prerequisites: Git, Node.js **22.12.0 or newer**, and npm **9.6.5 or newer**.
+Node.js 24 is used by the deployment workflow; newer Node versions are allowed
+by the project's engine requirements.
+
+Run from the blog repository root:
+
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
