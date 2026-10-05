@@ -3,8 +3,9 @@ layout: ../../layouts/PostLayout.astro
 title: "Debugging Melee after the matching decompilation"
 description: "How Melee's matching decompilation, our Dolphin fork, DAP clients, and MCP open new paths into reverse engineering."
 published: "2026-09-12T11:00:00-04:00"
+updated: "2026-10-05T10:58:56-05:00"
 number: "002"
-readingTime: "12 minutes"
+readingTime: "7 minutes"
 ---
 
 After years of work, the [`doldecomp/melee`](https://github.com/doldecomp/melee) community has completed a matching decompilation of *Super Smash Bros. Melee*. The reconstructed source now compiles to the original machine code. That is an enormous milestone, and it gives people a foundation for reading, building, and studying the game.
@@ -47,22 +48,20 @@ It also provides game-oriented tools such as live memory watches, frozen values,
 
 First follow the decompilation project's [getting-started guide](https://github.com/doldecomp/melee/blob/master/docs/getting_started.md) to prepare the repository and the required files from your own copy of Melee.
 
-Configure a debug build. Since [`doldecomp/melee` pull request #3466](https://github.com/doldecomp/melee/pull/3466) was merged, `--debug` enables symbols and disables optimization. Disabling optimization is important because compiler optimization makes source-level stepping unreliable and prevents local variables from updating correctly in the DAP client.
+Configure a debug build. `--debug` enables symbols and disables optimization for normal source builds; some files retain optimization for compatibility.
 
 ```sh
 python3 configure.py --debug
 ninja
 ```
 
-This produces `build/GALE01/main.elf`. Dolphin boots the ISO through its normal disc bootstrap, then replaces the disc executable with this ELF so that the running code matches its debugging information. DAP relies on the ELF's symbols and DWARF information.
+This produces `build/GALE01/main.elf`. With executable replacement enabled below, Dolphin boots your ISO through its normal disc bootstrap, then replaces the disc executable with this ELF. That keeps the executed code aligned with its debugging information while retaining the game's disc files.
 
 ## Start with VS Code
 
 If you are unfamiliar with debuggers, start with VS Code and our [`dolphin-dap-vscode`](https://github.com/LiveMindIO/dolphin-dap-vscode) extension. Its Run and Debug view keeps source code, variables, the call stack, and breakpoints visible alongside controls for pausing and stepping.
 
-Build the fork's NoGUI target by following the [`dolphin-dap` server guide](https://github.com/LiveMindIO/dolphin-dap/blob/master/Tools/dap/README.md), then follow the [VS Code extension installation instructions](https://github.com/LiveMindIO/dolphin-dap-vscode).
-
-These instructions assume `DebugModeEnabled=True`. The VS Code extension's managed launches, the optional launch task below, and the Neovim plugin's generated commands include `-C Dolphin.Interface.DebugModeEnabled=True`, enabling core breakpoint checks and debugger-aware stepping for that launch, including in NoGUI.
+Build our Dolphin fork using the [`dolphin-dap` server guide](https://github.com/LiveMindIO/dolphin-dap/blob/master/Tools/dap/README.md), then follow the [VS Code extension installation instructions](https://github.com/LiveMindIO/dolphin-dap-vscode#installation).
 
 ### Managed launch on Linux or Windows
 
@@ -79,119 +78,23 @@ With extension version 0.3.0 or newer, add this `.vscode/launch.json` to the Mel
       "dolphin": "/path/to/dolphin-emu-nogui",
       "program": "/path/to/melee.iso",
       "elfFile": "${workspaceFolder}/build/GALE01/main.elf",
-      "sourcePaths": ["${workspaceFolder}/src", "${workspaceFolder}/extern/dolphin/src"],
+      "replaceDiscExecutable": true,
+      "sourcePaths": ["${workspaceFolder}/src", "${workspaceFolder}/libs/dolphin/src"],
       "stopOnEntry": true
     }
   ]
 }
 ```
 
-Replace the Dolphin and ISO paths. On Windows, use a Dolphin path such as `C:/tools/dolphin-dap/dolphin-emu-nogui.exe`. The extension starts Dolphin, retries the DAP connection while the game boots, logs to **Output → Dolphin DAP**, and stops its process when the session ends. NoGUI defaults to X11 on Linux and Win32 on Windows; set `platform` for another supported backend. `replaceDiscExecutable` defaults to `true`, so the ISO boots normally before its executable is replaced with the debug ELF.
+Replace the Dolphin and ISO paths, then select **Debug Melee** in Run and Debug. The extension starts Dolphin and connects the debugger. See the [plugin documentation](https://github.com/LiveMindIO/dolphin-dap-vscode#configuration) for platform settings and troubleshooting.
 
-To build first, add `"preLaunchTask": "Build Dolphin Debug ELF"` and define that task in `.vscode/tasks.json`. Use project-specific process tasks to run `python configure.py --debug` and then `ninja`; on Linux your Python command may be `python3`. Chain them with `dependsOn` and `dependsOrder: "sequence"`. VS Code finishes the build task before the extension starts Dolphin. Omit `preLaunchTask` to debug an existing build. See the extension's [configuration guide](https://github.com/LiveMindIO/dolphin-dap-vscode#configuration) for build-task examples.
+On Windows, use your built `DolphinNoGUI.exe` as `dolphin` and add `"platform": "win32"`. The JSON above uses Linux's executable name.
 
-### Optional task-based launch on Linux
+For a first test, open a source file from this Melee checkout and click beside an executable line number to set a breakpoint. Start **Debug Melee**, then click **Continue** from the initial startup stop. Perform the game action that reaches your breakpoint. When it stops, use **Step Over** and inspect **Variables** and **Call Stack**. Click **Stop** when finished. Startup disassembly is normal before reaching source with debug information; an unverified breakpoint may indicate a non-executable line or a mismatched ELF.
 
-The following configuration retains our earlier task-based setup for users who want to manage Dolphin externally. Managed launch above is the simpler option. This setup separates building Melee, launching Dolphin, and stopping Dolphin into distinct tasks. **Build and Debug** runs the build and launch tasks in sequence, while **Debug** launches the existing ELF. The launch task records Dolphin's process ID and waits for its DAP socket; the stop task uses that process ID to clean up Dolphin when debugging ends.
+Both editor plugins enable core debugging automatically with `Dolphin.Interface.DebugModeEnabled=True`. Managed launches use TCP; manual attachment requires you to start Dolphin with core debugging enabled and a matching port or socket. A DAP endpoint alone does not enable breakpoint checks.
 
-Add `.vscode/tasks.json` to the Melee checkout. Replace `/path/to/dolphin-dap` and `/path/to/melee.iso` with the paths to your `dolphin-dap` build and legally obtained Melee disc image:
-
-```json
-{
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Build Dolphin Debug ELF",
-      "type": "process",
-      "command": "/bin/bash",
-      "args": [
-        "-c",
-        "set -e\npython configure.py --debug\nninja"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      }
-    },
-    {
-      "label": "Launch Dolphin DAP",
-      "type": "process",
-      "command": "/bin/bash",
-      "args": [
-        "-c",
-        "set -e\nsocket=$1\npidfile=$2\nif [ -f \"$pidfile\" ]; then\n  IFS= read -r old_pid <\"$pidfile\"\n  kill \"$old_pid\" 2>/dev/null || true\nfi\nrm -f \"$socket\" \"$pidfile\"\nnohup \"$3\" -C Dolphin.Interface.DebugModeEnabled=True -C \"Dolphin.General.DAPSocket=$socket\" -C \"Dolphin.Debug.SourcePaths=$6\" -C \"Dolphin.Debug.ELFFile=$5\" -C Dolphin.Debug.ReplaceDiscExecutable=true --exec \"$4\" --platform x11 >build/dolphin-dap.log 2>&1 &\ndolphin_pid=$!\nprintf '%s\\n' \"$dolphin_pid\" >\"$pidfile\"\ncleanup() {\n  kill \"$dolphin_pid\" 2>/dev/null || true\n  rm -f \"$socket\" \"$pidfile\"\n}\ntrap cleanup ERR INT TERM\nuntil [ -S \"$socket\" ]; do\n  kill -0 \"$dolphin_pid\"\n  sleep 0.1\ndone\nprintf 'Dolphin DAP ready\\n'",
-        "launch-dolphin",
-        "${workspaceFolder}/.dolphin-dap.sock",
-        "${workspaceFolder}/.dolphin-dap.pid",
-        "/path/to/dolphin-dap/build/Binaries/dolphin-emu-nogui",
-        "/path/to/melee.iso",
-        "${workspaceFolder}/build/GALE01/main.elf",
-        "${workspaceFolder}/src;${workspaceFolder}/extern/dolphin/src"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
-    },
-    {
-      "label": "Build and Launch Dolphin DAP",
-      "dependsOrder": "sequence",
-      "dependsOn": [
-        "Build Dolphin Debug ELF",
-        "Launch Dolphin DAP"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "Stop Dolphin DAP",
-      "type": "process",
-      "command": "/bin/bash",
-      "args": [
-        "-c",
-        "pidfile=$1\nsocket=$2\nif [ -f \"$pidfile\" ]; then\n  IFS= read -r dolphin_pid <\"$pidfile\"\n  kill \"$dolphin_pid\" 2>/dev/null || true\nfi\nrm -f \"$pidfile\" \"$socket\"",
-        "stop-dolphin",
-        "${workspaceFolder}/.dolphin-dap.pid",
-        "${workspaceFolder}/.dolphin-dap.sock"
-      ],
-      "problemMatcher": []
-    }
-  ]
-}
-```
-
-Then add `.vscode/launch.json`:
-
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Build and Debug",
-      "type": "dolphin",
-      "request": "attach",
-      "preLaunchTask": "Build and Launch Dolphin DAP",
-      "postDebugTask": "Stop Dolphin DAP",
-      "socket": "${workspaceFolder}/.dolphin-dap.sock",
-      "stopOnEntry": true
-    },
-    {
-      "name": "Debug",
-      "type": "dolphin",
-      "request": "attach",
-      "preLaunchTask": "Launch Dolphin DAP",
-      "postDebugTask": "Stop Dolphin DAP",
-      "socket": "${workspaceFolder}/.dolphin-dap.sock",
-      "stopOnEntry": true
-    }
-  ]
-}
-```
-
-Open Run and Debug and choose **Build and Debug**. VS Code configures the non-optimized ELF, builds it with Ninja, starts Dolphin, waits for the DAP socket, and then attaches the extension. After the first build, choose **Debug** when you want to relaunch the existing ELF without rebuilding it. Ending either debug session runs **Stop Dolphin DAP**.
-
-In this optional setup, `preLaunchTask` prepares Dolphin before the extension attaches; `postDebugTask` handles cleanup. It uses Bash, a Unix-domain socket, and Dolphin's X11 platform, so other operating systems or display backends require corresponding changes. Those scripts are not needed for the extension's managed launch.
+To build before launching, add `preLaunchTask` referencing your workspace's build task. The [build-task guide](https://github.com/LiveMindIO/dolphin-dap-vscode#build-before-launching) shows how to configure it.
 
 ## A working Neovim setup
 
@@ -219,22 +122,20 @@ return {
   cwd = "/path/to/melee",
   source_paths = {
     "/path/to/melee/src",
-    "/path/to/melee/extern/dolphin/src",
+    "/path/to/melee/libs/dolphin/src",
   },
   enable_cheats = false,
   port = 5678,
 }
 ```
 
-The order of `source_paths` matters because some compiler records contain only a filename. We validated source lookup, a thirteen-frame call stack, registers, expressions, memory regions, scanning, pointer chains, disassembly, live watches, source breakpoints, instruction stepping, resume, and disconnect against this setup.
+Run `:DapContinue` and select **Dolphin launch nogui (video, …)** to see the game window, or **Dolphin launch headless** for no window. The Qt launch requires the separate `dolphin-emu` binary. Source roots must match your checkout; older Melee revisions may use `extern/dolphin/src` instead of `libs/dolphin/src`. See the [Neovim plugin documentation](https://github.com/LiveMindIO/dolphin-dap-nvim#configuration) for installation, configuration options, and manual attachment.
 
-Run `:DapContinue` and select a Dolphin launch configuration. For a manual launch, run the command printed by `:DolphinDapCmd`, then use `:lua require("dolphin-dap").attach()` to connect Neovim. Both launch workflows enable core debugging automatically.
+Before launching, open a source file and run `:DapToggleBreakpoint` on an executable line. Continue past the startup stop with `:DapContinue`, then trigger that code in the game. Use `:DapStepOver` to step, inspect **Scopes** and **Stacks** with `nvim-dap-ui`, and run `:DapDisconnect` when finished. On Windows, configure `DolphinNoGUI.exe` and `platform = "win32"`; set `dolphin_gui` explicitly if using Qt.
 
 ## AI can assist, not decide
 
-[`dolphin-dap-mcp`](https://github.com/LiveMindIO/dolphin-dap-mcp) is a separate MCP server that lets a compatible AI client use the debugger. Its README includes installation instructions and an example MCP configuration. Once connected, an agent can start or attach to Dolphin, set a breakpoint, inspect a stack, read variables or memory, disassemble code, and gather evidence about what the game is doing.
-
-For this setup, start Dolphin with the launch task above or the command printed by `:DolphinDapCmd`, then call `dolphin_connect` with the matching socket or TCP port. This reuses a launch with core debugging enabled.
+[`dolphin-dap-mcp`](https://github.com/LiveMindIO/dolphin-dap-mcp) is a separate MCP server that lets a compatible AI client use the debugger. Follow its README to install and connect it. Once connected, an agent can set a breakpoint, inspect a stack, read variables or memory, disassemble code, and gather evidence about what the game is doing.
 
 This lets an agent test a guess instead of only reasoning from source code. It can also repeat a long sequence of debugger operations and record what happened. That does **not** make its conclusions correct.
 

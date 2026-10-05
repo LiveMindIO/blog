@@ -13,11 +13,13 @@ interface Props {
 }
 
 const { title, description, published, updated, number, readingTime } = Astro.props.frontmatter;
-const date = new Intl.DateTimeFormat("en-US", {
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "long",
   day: "numeric",
-}).format(new Date(published));
+});
+const date = dateFormatter.format(new Date(published));
+const updatedDate = updated ? dateFormatter.format(new Date(updated)) : undefined;
 ---
 
 <BaseLayout title={title} description={description}>
@@ -31,7 +33,7 @@ const date = new Intl.DateTimeFormat("en-US", {
       <div>Published<br />{date}</div>
       <br />
       <div>Reading time<br />{readingTime}</div>
-      {updated && <><br /><div>Revised<br />{updated}</div></>}
+      {updatedDate && <><br /><div>Revised<br />{updatedDate}</div></>}
     </div>
   </header>
   <article class="content-shell article">
